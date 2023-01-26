@@ -7,6 +7,11 @@
 #include <map>
 #include <cmath>
 
+//TF поправил чтобы он считался так, как считатся в авторском решении
+//Когда переношу подсчёт IDF в отдельную функцию как в авторском решении, в тренажере ловлю ограничение по времени
+//Так что не очень понимаю, как можно улучшить подсчет IDF и стоит ли
+
+
 using namespace std;
 
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
@@ -77,16 +82,15 @@ class SearchServer {
   void AddDocument(int document_id, const string &document) {
     vector<string> words = SplitIntoWordsNoStop(document);
     ++document_count_;
-    size_of_document_[document_id] = words.size();
+    const double inv_word_count = 1.0 / words.size();
     for (const string &word : words) {
-      words_and_documents_[word].insert({document_id, (count(words.begin(), words.end(), word))});
+      distributed_index_tf_[word][document_id] = inv_word_count;
     }
   }
 
   vector<Document> FindTopDocuments(const string &raw_query) const {
     const set<string> query_words = ParseQuery(raw_query);
     Query valued_query = MakeValuedQuery(query_words);
-
 
     auto matched_documents = FindAllDocuments(valued_query);
 
@@ -103,12 +107,8 @@ class SearchServer {
  private:
 
   int document_count_ = 0;
-
-  map<string, set<pair<int, int>>> words_and_documents_;
-
+  map<string, map<int, double>> distributed_index_tf_;
   set<string> stop_words_;
-
-  map<int, int> size_of_document_;
 
   bool IsStopWord(const string &word) const {
     return stop_words_.count(word) > 0;
@@ -142,24 +142,22 @@ class SearchServer {
 
     //ProcessPlusWords
     for (const string &plus : valued_query.plus_words) {
-      if (words_and_documents_.count(plus)) {
-        double idf = log(dc / words_and_documents_.at(plus).size());
-        for (pair<int, float> id_number : words_and_documents_.at(plus)) {
-          processing[id_number.first] +=
-              idf * (id_number.second / size_of_document_.at(id_number.first));
+      if (distributed_index_tf_.count(plus)) {
+        double idf = log(dc / distributed_index_tf_.at(plus).size());
+        for (auto [id, tf] : distributed_index_tf_.at(plus)) {
+          processing[id] += tf * idf;
         }
       }
     }
 
     //ProcessMinusWords
     for (const string &minus : valued_query.minus_words) {
-      if (words_and_documents_.count(minus)) {
-        for (pair<int, int> id_number : words_and_documents_.at(minus)) {
-          processing.erase(id_number.first);
+      if (distributed_index_tf_.count(minus)) {
+        for (const auto [id, _] : distributed_index_tf_.at(minus)) {
+          processing.erase(id);
         }
       }
     }
-
     for (const auto &doc : processing) {
       matched_documents.push_back({doc.first, doc.second});
     }
