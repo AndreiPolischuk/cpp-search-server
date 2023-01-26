@@ -7,11 +7,6 @@
 #include <map>
 #include <cmath>
 
-//TF поправил чтобы он считался так, как считатся в авторском решении
-//Когда переношу подсчёт IDF в отдельную функцию как в авторском решении, в тренажере ловлю ограничение по времени
-//Так что не очень понимаю, как можно улучшить подсчет IDF и стоит ли
-
-
 using namespace std;
 
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
@@ -106,6 +101,8 @@ class SearchServer {
 
  private:
 
+
+
   int document_count_ = 0;
   map<string, map<int, double>> distributed_index_tf_;
   set<string> stop_words_;
@@ -132,18 +129,26 @@ class SearchServer {
     return query_words;
   }
 
+
+  double IDF(const string& word) const {
+    return log((document_count_ * 1.0) / distributed_index_tf_.at(word).size());
+  }
+
+
+
   vector<Document> FindAllDocuments(const Query &valued_query) const {
     vector<Document> matched_documents;
     map<int, float> processing;
     if (valued_query.plus_words.empty()) {
       return matched_documents;
     }
-    float dc = document_count_;
+
 
     //ProcessPlusWords
     for (const string &plus : valued_query.plus_words) {
       if (distributed_index_tf_.count(plus)) {
-        double idf = log(dc / distributed_index_tf_.at(plus).size());
+        double idf = IDF(plus);
+
         for (auto [id, tf] : distributed_index_tf_.at(plus)) {
           processing[id] += tf * idf;
         }
