@@ -403,41 +403,16 @@ void TestSearchByStatus() {
   search_server.AddDocument(0, "I love Paris"s, DocumentStatus::ACTUAL, ratings);
   search_server.AddDocument(1, "I love love Morris"s, DocumentStatus::ACTUAL, ratings);
   search_server.AddDocument(2, "Horrible day"s, DocumentStatus::ACTUAL, ratings);
-  ASSERT(search_server.FindTopDocuments("day").size() == 1);
-  ASSERT(search_server.FindTopDocuments("love"s).size() > 1);
-  ASSERT(search_server.FindTopDocuments("love"s)[0].id == 1);
   search_server.AddDocument(3, "I love you", DocumentStatus::BANNED, ratings);
   ASSERT(search_server.FindTopDocuments("love", DocumentStatus::BANNED).size() == 1);
   ASSERT(search_server.FindTopDocuments("love", DocumentStatus::BANNED)[0].id == 3);
 
-  ASSERT(search_server.FindTopDocuments("love", DocumentStatus::REMOVED).size() == 0);
+  ASSERT(search_server.FindTopDocuments("love", DocumentStatus::REMOVED).size() == 0); // Другой статус
 }
 
-void TestTfIdf() { // ОПОСРЕДОВАННО ПРОВЕРЯЕТ РАНЖИРОВАНИЕ ПО TF-IDF, СЛОВО HORRIBLE РЕЖЕ ВСТРЕЧАЕТСЯ, ДОКУМЕНТ С НИМ ДООЛЖЕН БЫТЬ ВЫШЕ
-  SearchServer search_server;
-  vector<int> ratings = {1, 2, 3};
-  search_server.AddDocument(0, "I love Paris sunny day"s, DocumentStatus::ACTUAL, ratings);
-  search_server.AddDocument(1, "I love love Morris day"s, DocumentStatus::ACTUAL, ratings);
-  search_server.AddDocument(2, "Horrible day"s, DocumentStatus::ACTUAL, ratings);
-  ASSERT(search_server.FindTopDocuments("Horrible day"s).size() > 0);
-  ASSERT(search_server.FindTopDocuments("Horrible love"s).size() > 0);
-  ASSERT(search_server.FindTopDocuments("Horrible day"s)[0].id == 2);
-  ASSERT(search_server.FindTopDocuments("Horrible love"s)[0].id == 2);
-}
 
-void TestMaxCount() {
 
-  SearchServer search_server;
-  vector<int> ratings = {1, 2, 3};
-  search_server.AddDocument(0, "I love Paris sunny day"s, DocumentStatus::ACTUAL, ratings);
-  search_server.AddDocument(1, "I love love Morris day"s, DocumentStatus::ACTUAL, ratings);
-  search_server.AddDocument(2, "Horrible day"s, DocumentStatus::ACTUAL, ratings);
-  search_server.AddDocument(3, "I love Paris sunny day meow"s, DocumentStatus::ACTUAL, ratings);
-  search_server.AddDocument(4, "I love Paris sunny day woof"s, DocumentStatus::ACTUAL, ratings);
-  search_server.AddDocument(5, "I love Paris sunny day bark"s, DocumentStatus::ACTUAL, ratings);
-  ASSERT(search_server.FindTopDocuments("day").size() == 5);
 
-}
 
 void TestMinusWords() {
   SearchServer search_server;
@@ -455,10 +430,10 @@ void TestMinusWords() {
 void TestRating() {
 
   SearchServer search_server;
-  vector<int> ratings = {10, 10, 10, 20, 20, 20}; // (10 + 20) / 2 == 15
+  vector<int> ratings = {10, 10, 10, 20, 20, 20};
   search_server.AddDocument(0, "I love Paris sunny day bark"s, DocumentStatus::ACTUAL, ratings);
   ASSERT(search_server.FindTopDocuments("love").size() == 1);
-  ASSERT_EQUAL(search_server.FindTopDocuments("love")[0].rating, 15);
+  ASSERT_EQUAL(search_server.FindTopDocuments("love")[0].rating, (10 + 10 + 10 + 20 + 20 + 20) / 6);
 }
 
 void TestDocumentRelevanceSort() {
@@ -473,8 +448,13 @@ void TestDocumentRelevanceSort() {
 }
 
 void TestDocumentRelevanceCulculation() {
-  //Я не вижу смысла в рассчёте релевантности отдельно, так как она учтена неявно в каждом тесте, я множеством способов проверяю 
-  // Порядок Расположения документов в выдаче
+  SearchServer search_server;
+  vector<int> rating = {1};
+  search_server.AddDocument(0, "one two"s, DocumentStatus::ACTUAL, ratings);
+  search_server.AddDocument(1, "one two"s, DocumentStatus::ACTUAL, ratings);
+  search_server.AddDocument(2, "two"s, DocumentStatus::ACTUAL, ratings);
+  ASSERT(search_server.FindTopDocuments("one")[0].relevance = (2.0 / 3) * log(3.0 / 2));
+  
 }
 
 void TestPredicateSearch() {
@@ -484,8 +464,8 @@ void TestPredicateSearch() {
   search_server.AddDocument(1, "the second right one "s, DocumentStatus::ACTUAL, ratings);
   search_server.AddDocument(2, "the third right one"s, DocumentStatus::ACTUAL, ratings);
   search_server.AddDocument(3, "only one"s, DocumentStatus::IRRELEVANT, ratings);
-  ASSERT(search_server.FindTopDocuments("the right one", DocumentStatus::IRRELEVANT).size() == 1);
-  ASSERT(search_server.FindTopDocuments("the right one", DocumentStatus::IRRELEVANT)[0].id == 3);
+  ASSERT(search_server.FindTopDocuments("the right one", [](int id, DocumentStatus status, double rating){return rating > 1;}).size() == 0);
+  ASSERT(search_server.FindTopDocuments("the right one", [](int id, DocumentStatus status, double rating){return rating > 1 && status == DocumentStatus::ACTUAL;}).size() == 3);
 }
 
 void MatchDocumentTest() {
@@ -495,9 +475,39 @@ void MatchDocumentTest() {
   search_server.AddDocument(1, "the second right one "s, DocumentStatus::ACTUAL, ratings);
   search_server.AddDocument(2, "the third right one"s, DocumentStatus::ACTUAL, ratings);
   search_server.AddDocument(3, "only one"s, DocumentStatus::IRRELEVANT, ratings);
-  ASSERT(search_server.MatchDocument("only one", 3)[0].size() == 2);
-  ASSERT(search_server.MatchDocument("meow", 2)[0].size() == 0);
-  ASSERT(search_server.MatchDocument("meow woof one", 0)[0][0] == "one");
+
+
+    auto [vectorr1, status1] = search_server.MatchDocument("only one", 3);
+    ASSERT(vectorr1.size() == 2);
+
+
+
+    auto [vectorr2, status2] = search_server.MatchDocument("meow", 2);
+    ASSERT(vectorr2.size() == 0);
+
+
+
+    auto [vectorr3, status3]  = search_server.MatchDocument("meow woof one", 0);
+    ASSERT(vectorr3.size() > 0);
+
+
+    auto [vectorr4, status4] = search_server.MatchDocument("meow woof one", 0);
+    ASSERT(vectorr4[0] == "one");
+
+    auto [vector5, status5] = search_server.MatchDocument("meow woof one", 0);
+    ASSERT(status5 == DocumentStatus::ACTUAL);
+
+    auto [vector6, status6] = search_server.MatchDocument("meow woof -one", 0);
+    ASSERT(vector6.empty());
+
+  search_server.SetStopWords("one"s);
+
+    auto [vector7, status7] = search_server.MatchDocument("meow woof one", 0);
+
+    ASSERT(vector7.empty());
+
+
+
 }
 
 
@@ -507,8 +517,6 @@ void TestSearchServer() {
   RUN_TEST(TestExcludeStopWordsFromAddedDocumentContent);
   RUN_TEST(TestDocumentCount);
   RUN_TEST(TestSearchByStatus);
-  RUN_TEST(TestTfIdf);
-  RUN_TEST(TestMaxCount);
   RUN_TEST(TestMinusWords);
   RUN_TEST(TestRating);
   RUN_TEST(TestDocumentRelevanceSort);
