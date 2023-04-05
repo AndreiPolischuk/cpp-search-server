@@ -410,10 +410,6 @@ void TestSearchByStatus() {
   ASSERT(search_server.FindTopDocuments("love", DocumentStatus::REMOVED).size() == 0); // Другой статус
 }
 
-
-
-
-
 void TestMinusWords() {
   SearchServer search_server;
   vector<int> ratings = {1, 2, 3};
@@ -453,8 +449,9 @@ void TestDocumentRelevanceCulculation() {
   search_server.AddDocument(0, "one two"s, DocumentStatus::ACTUAL, ratings);
   search_server.AddDocument(1, "one two"s, DocumentStatus::ACTUAL, ratings);
   search_server.AddDocument(2, "two"s, DocumentStatus::ACTUAL, ratings);
-  ASSERT(search_server.FindTopDocuments("one")[0].relevance = (2.0 / 3) * log(3.0 / 2));
-  
+  ASSERT(search_server.FindTopDocuments("one").size() > 0);
+  ASSERT(abs(search_server.FindTopDocuments("one")[0].relevance - ((2.0 / 3) * log(3.0 / 2))) < 0.00006);
+
 }
 
 void TestPredicateSearch() {
@@ -464,8 +461,18 @@ void TestPredicateSearch() {
   search_server.AddDocument(1, "the second right one "s, DocumentStatus::ACTUAL, ratings);
   search_server.AddDocument(2, "the third right one"s, DocumentStatus::ACTUAL, ratings);
   search_server.AddDocument(3, "only one"s, DocumentStatus::IRRELEVANT, ratings);
-  ASSERT(search_server.FindTopDocuments("the right one", [](int id, DocumentStatus status, double rating){return rating > 1;}).size() == 0);
-  ASSERT(search_server.FindTopDocuments("the right one", [](int id, DocumentStatus status, double rating){return rating > 1 && status == DocumentStatus::ACTUAL;}).size() == 3);
+  ASSERT(search_server.FindTopDocuments("the right one",
+                                        [](int id, DocumentStatus status, double rating) { return rating > 1; }).size()
+             == 0);
+  ASSERT(search_server.FindTopDocuments("the right one",
+                                        [](int id, DocumentStatus status, double rating) {
+                                          return rating >= 1 && status == DocumentStatus::ACTUAL;
+                                        }).size() == 1);
+  
+  ASSERT(search_server.FindTopDocuments("the right one",
+                                        [](int id, DocumentStatus status, double rating) {
+                                          return rating >= 1 && status == DocumentStatus::ACTUAL;
+                                        })[0] == vector<string>{"only"s, "one"s});
 }
 
 void MatchDocumentTest() {
@@ -475,42 +482,40 @@ void MatchDocumentTest() {
   search_server.AddDocument(1, "the second right one "s, DocumentStatus::ACTUAL, ratings);
   search_server.AddDocument(2, "the third right one"s, DocumentStatus::ACTUAL, ratings);
   search_server.AddDocument(3, "only one"s, DocumentStatus::IRRELEVANT, ratings);
+  {
+    auto [words, status] = search_server.MatchDocument("only one", 3);
+    ASSERT(words.size() == 2);
+    ASSERT(words == vector<string>{"only"s, "one"s});
+  }
 
+  {
+    auto [words, status] = search_server.MatchDocument("meow", 2);
+    ASSERT(words.size() == 0);
+  }
 
-    auto [vectorr1, status1] = search_server.MatchDocument("only one", 3);
-    ASSERT(vectorr1.size() == 2);
-
-
-
-    auto [vectorr2, status2] = search_server.MatchDocument("meow", 2);
-    ASSERT(vectorr2.size() == 0);
-
-
-
-    auto [vectorr3, status3]  = search_server.MatchDocument("meow woof one", 0);
-    ASSERT(vectorr3.size() > 0);
-
-
-    auto [vectorr4, status4] = search_server.MatchDocument("meow woof one", 0);
-    ASSERT(vectorr4[0] == "one");
-
-    auto [vector5, status5] = search_server.MatchDocument("meow woof one", 0);
-    ASSERT(status5 == DocumentStatus::ACTUAL);
-
-    auto [vector6, status6] = search_server.MatchDocument("meow woof -one", 0);
-    ASSERT(vector6.empty());
-
-  search_server.SetStopWords("one"s);
-
-    auto [vector7, status7] = search_server.MatchDocument("meow woof one", 0);
-
-    ASSERT(vector7.empty());
-
-
+  {
+    auto [words, status] = search_server.MatchDocument("meow woof one", 0);
+    ASSERT(words.size() > 0);
+  }
+  {
+    auto [words, status] = search_server.MatchDocument("meow woof one", 0);
+    ASSERT(words[0] == "one");
+  }
+  {
+    auto [words, status] = search_server.MatchDocument("meow woof one", 0);
+    ASSERT(status == DocumentStatus::ACTUAL);
+  }
+  {
+    auto [words, status] = search_server.MatchDocument("meow woof -one", 0);
+    ASSERT(words.empty());
+  }
+  {
+    search_server.SetStopWords("one"s);
+    auto [words, status] = search_server.MatchDocument("meow woof one", 0);
+    ASSERT(words.empty());
+  }
 
 }
-
-
 
 // Функция TestSearchServer является точкой входа для запуска тестов
 void TestSearchServer() {
