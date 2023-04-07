@@ -468,11 +468,11 @@ void TestPredicateSearch() {
                                         [](int id, DocumentStatus status, double rating) {
                                           return rating >= 1 && status == DocumentStatus::ACTUAL;
                                         }).size() == 1);
-  
+
   ASSERT(search_server.FindTopDocuments("the right one",
                                         [](int id, DocumentStatus status, double rating) {
                                           return rating >= 1 && status == DocumentStatus::ACTUAL;
-                                        })[0] == vector<string>{"only"s, "one"s});
+                                        })[0] == vector<string>({"only"s, "one"s}));
 }
 
 void MatchDocumentTest() {
@@ -484,35 +484,36 @@ void MatchDocumentTest() {
   search_server.AddDocument(3, "only one"s, DocumentStatus::IRRELEVANT, ratings);
   {
     auto [words, status] = search_server.MatchDocument("only one", 3);
-    ASSERT(words.size() == 2);
-    ASSERT(words == vector<string>{"only"s, "one"s});
-  }
+    vector<string> result({"only"s});
+    ASSERT(words == result);
+    ASSERT(status == DocumentStatus::IRRELEVANT);
 
+  }
   {
     auto [words, status] = search_server.MatchDocument("meow", 2);
     ASSERT(words.size() == 0);
+    ASSERT(status == DocumentStatus::ACTUAL);
   }
 
   {
     auto [words, status] = search_server.MatchDocument("meow woof one", 0);
+
     ASSERT(words.size() > 0);
-  }
-  {
-    auto [words, status] = search_server.MatchDocument("meow woof one", 0);
-    ASSERT(words[0] == "one");
-  }
-  {
-    auto [words, status] = search_server.MatchDocument("meow woof one", 0);
+    ASSERT(words[0] == "one"s);
     ASSERT(status == DocumentStatus::ACTUAL);
+
   }
+
   {
     auto [words, status] = search_server.MatchDocument("meow woof -one", 0);
     ASSERT(words.empty());
+    ASSERT(status == DocumentStatus::ACTUAL);
   }
   {
     search_server.SetStopWords("one"s);
     auto [words, status] = search_server.MatchDocument("meow woof one", 0);
     ASSERT(words.empty());
+    ASSERT(status == DocumentStatus::ACTUAL);
   }
 
 }
