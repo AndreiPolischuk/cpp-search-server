@@ -80,7 +80,6 @@ enum class DocumentStatus {
 class SearchServer {
  public:
 
-  inline static constexpr int INVALID_DOCUMENT_ID = -1;
 
   template<typename StringContainer>
   explicit SearchServer(const StringContainer &stop_words)
@@ -116,7 +115,7 @@ class SearchServer {
     }
 
     documents_.emplace(document_id, DocumentData{ComputeAverageRating(ratings), status});
-    DocumentIds[documents_.size()] = document_id;
+    document_ids_[documents_.size()] = document_id; // Здесь нельзя использовать push_back, это словарь
   }
 
   template<typename DocumentPredicate>
@@ -181,10 +180,7 @@ class SearchServer {
   }
 
   int GetDocumentId(int index) const {
-    if (index >= documents_.size() || index < 0) {
-      throw out_of_range("Out of range"s);
-    }
-    return DocumentIds.at(index + 1);
+    return document_ids_.at(index);
   }
 
  private:
@@ -196,7 +192,7 @@ class SearchServer {
   const set<string> stop_words_;
   map<string, map<int, double>> word_to_document_freqs_;
   map<int, DocumentData> documents_;
-  map<int, int> DocumentIds;
+  map<int, int> document_ids_;
 
   bool DoesTextContainSpecialSymbols(const string &text) const {
     if (std::any_of(text.begin(), text.end(), [](auto symbol) {
