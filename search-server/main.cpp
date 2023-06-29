@@ -85,10 +85,17 @@ class SearchServer {
   template<typename StringContainer>
   explicit SearchServer(const StringContainer &stop_words)
       : stop_words_(MakeUniqueNonEmptyStrings(stop_words)) {
-    for (const auto &word : stop_words_) {
-      if (DoesTextContainSpecialSymbols(word)) {
-        throw invalid_argument("stop words should not contain special symbols"s);
-      }
+
+    if (std::any_of(stop_words_.begin(), stop_words_.end(), [](auto &text) {
+                      for (const char &symbol : text) {
+                        if (static_cast<int>(symbol) < 32 && static_cast<int>(symbol) >= 0) {
+                          return true;
+                        }
+                      }
+                      return false;
+                    }
+    )) {
+      throw invalid_argument("stop words should not contain special symbols"s);
     }
   }
 
@@ -96,11 +103,6 @@ class SearchServer {
       : SearchServer(
       SplitIntoWords(stop_words_text))  // Invoke delegating constructor from string container
   {
-    for (const auto &word : stop_words_) {
-      if (DoesTextContainSpecialSymbols(word)) {
-        throw invalid_argument("stop words should not contain special symbols"s);
-      }
-    }
   }
 
   void AddDocument(int document_id, const string &document, DocumentStatus status, const vector<int> &ratings) {
@@ -114,7 +116,7 @@ class SearchServer {
     }
 
     documents_.emplace(document_id, DocumentData{ComputeAverageRating(ratings), status});
-    DIds.DIds[documents_.size()] = document_id;
+    DocumentIds[documents_.size()] = document_id;
   }
 
   template<typename DocumentPredicate>
@@ -182,7 +184,7 @@ class SearchServer {
     if (index >= documents_.size() || index < 0) {
       throw out_of_range("Out of range"s);
     }
-    return DIds.DIds.at(index + 1);
+    return DocumentIds.at(index + 1);
   }
 
  private:
@@ -191,23 +193,33 @@ class SearchServer {
     DocumentStatus status;
   };
 
-  struct DocumentIds {
-    map<int, int> DIds;
-  };
-
   const set<string> stop_words_;
   map<string, map<int, double>> word_to_document_freqs_;
   map<int, DocumentData> documents_;
-  DocumentIds DIds;
-  
+  map<int, int> DocumentIds;
+
+  bool DoesTextContainSpecialSymbols(const string &text) const {
+    if (std::any_of(text.begin(), text.end(), [](auto symbol) {
+      if (static_cast<int>(symbol) < 32 && static_cast<int>(symbol) >= 0) { return true; }
+      return false;
+    })) {
+      return true;
+    }
+    return false;
+  }
+
   bool IsStopWord(const string &word) const {
     return stop_words_.count(word) > 0;
   }
 
   vector<string> SplitIntoWordsNoStop(const string &text) const {
+
     vector<string> words;
     for (const string &word : SplitIntoWords(text)) {
       if (!IsStopWord(word)) {
+        if (DoesTextContainSpecialSymbols(word)) {
+          throw invalid_argument("words should not contain special symbols"s);
+        }
         words.push_back(word);
       }
     }
@@ -277,15 +289,6 @@ class SearchServer {
       }
     }
     return query;
-  }
-
-  bool DoesTextContainSpecialSymbols(const string &text) const {
-    for (const char &symbol : text) {
-      if (static_cast<int>(symbol) < 32 && static_cast<int>(symbol) >= 0) {
-        return true;
-      }
-    }
-    return false;
   }
 
   bool IsDocumentIncorrect(int id, const string &text) {
