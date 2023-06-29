@@ -14,6 +14,8 @@ using namespace std;
 
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
 
+double EPSILON = 1e-6;
+
 string ReadLine() {
   string s;
   getline(cin, s);
@@ -115,7 +117,7 @@ class SearchServer {
     }
 
     documents_.emplace(document_id, DocumentData{ComputeAverageRating(ratings), status});
-    document_ids_[documents_.size()] = document_id; // Здесь нельзя использовать push_back, это словарь
+    document_ids_.push_back(document_id); 
   }
 
   template<typename DocumentPredicate>
@@ -129,7 +131,7 @@ class SearchServer {
 
     sort(matched_documents.begin(), matched_documents.end(),
          [](const Document &lhs, const Document &rhs) {
-           if (abs(lhs.relevance - rhs.relevance) < 1e-6) {
+           if (abs(lhs.relevance - rhs.relevance) < EPSILON) {
              return lhs.rating > rhs.rating;
            } else {
              return lhs.relevance > rhs.relevance;
@@ -192,7 +194,7 @@ class SearchServer {
   const set<string> stop_words_;
   map<string, map<int, double>> word_to_document_freqs_;
   map<int, DocumentData> documents_;
-  map<int, int> document_ids_;
+  vector<int> document_ids_;
 
   bool DoesTextContainSpecialSymbols(const string &text) const {
     if (std::any_of(text.begin(), text.end(), [](auto symbol) {
