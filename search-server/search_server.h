@@ -14,13 +14,6 @@
 
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
 
-enum class DocumentStatus {
-  ACTUAL,
-  IRRELEVANT,
-  BANNED,
-  REMOVED,
-};
-
 class SearchServer {
  public:
   template<typename StringContainer>
