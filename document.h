@@ -2,6 +2,13 @@
 
 #include <iostream>
 
+enum class DocumentStatus {
+  ACTUAL,
+  IRRELEVANT,
+  BANNED,
+  REMOVED,
+};
+
 struct Document {
   Document() = default;
 
