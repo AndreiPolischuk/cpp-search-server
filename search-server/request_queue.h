@@ -10,19 +10,7 @@ class RequestQueue {
   explicit RequestQueue(const SearchServer &search_server);
 
   template<typename DocumentPredicate>
-  std::vector<Document> AddFindRequest(const std::string &raw_query, DocumentPredicate document_predicate) {
-    std::vector<Document> ans = ss.FindTopDocuments(raw_query, document_predicate);
-    bool succes = !ans.empty();
-    requests_.emplace_back(succes);
-    if (!succes) { ++no_result; }
-    if (requests_.size() > min_in_day_) {
-      if (!requests_.front().result) {
-        --no_result;
-      }
-      requests_.pop_front();
-    }
-    return ans;
-  }
+  std::vector<Document> AddFindRequest(const std::string &raw_query, DocumentPredicate document_predicate);
 
   std::vector<Document> AddFindRequest(const std::string &raw_query, DocumentStatus status);
 
@@ -41,3 +29,18 @@ class RequestQueue {
   const SearchServer &ss;
   // возможно, здесь вам понадобится что-то ещё
 };
+
+template<typename DocumentPredicate>
+  std::vector<Document> RequestQueue::AddFindRequest(const std::string &raw_query, DocumentPredicate document_predicate) {
+    std::vector<Document> ans = ss.FindTopDocuments(raw_query, document_predicate);
+    bool succes = !ans.empty();
+    requests_.emplace_back(succes);
+    if (!succes) { ++no_result; }
+    if (requests_.size() > min_in_day_) {
+      if (!requests_.front().result) {
+        --no_result;
+      }
+      requests_.pop_front();
+    }
+    return ans;
+  }
