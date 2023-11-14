@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <string_view>
 
 using namespace std;
 using namespace chrono;
@@ -14,19 +15,25 @@ using namespace literals;
 #define LOG_DURATION_STREAM(X, Y) LogDuration UNIQUE_VAR_NAME_PROFILE(X, Y)
 
 class LogDuration {
- public:
-  LogDuration(const std::string& id, ostream& s = cerr) : out_stream_(s), id_(id) {
-  }
+public:
+    LogDuration(const std::string& id, ostream& s = cerr) : out_stream_(s), id_(id) {
+    }
 
-  ~LogDuration() {
-    const auto end_time = steady_clock::now();
-    const auto dur = end_time - start_time_;
-    out_stream_ << id_ << ": "s << duration_cast<milliseconds>(dur).count() << " ms"s << endl;
-  }
+    LogDuration(const std::string_view id, ostream& s = cerr) : out_stream_(s), id_(id) {
+    }
 
- private:
-  ostream& out_stream_;
-  const std::string id_;
-  const steady_clock::time_point start_time_ = steady_clock::now();
+
+
+
+    ~LogDuration() {
+        const auto end_time = steady_clock::now();
+        const auto dur = end_time - start_time_;
+        out_stream_ << id_ << ": "s << duration_cast<milliseconds>(dur).count() << " ms"s << endl;
+    }
+
+private:
+    ostream& out_stream_;
+    const std::string id_;
+    const steady_clock::time_point start_time_ = steady_clock::now();
 
 };
