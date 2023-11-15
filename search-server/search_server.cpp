@@ -3,7 +3,7 @@
 using namespace std;
 
 SearchServer::SearchServer(const std::string_view stop_words_text) {
-    for (char ch : stop_words_text) {
+    for (char ch: stop_words_text) {
         if (iscntrl(ch)) {
             throw invalid_argument("");
         }
@@ -49,38 +49,15 @@ void SearchServer::AddDocument(int document_id,
 
 std::vector<Document> SearchServer::FindTopDocuments(const std::string_view raw_query, DocumentStatus status) const {
     return FindTopDocuments(
-            raw_query, [status](int document_id, DocumentStatus document_status, int rating) {
+            std::execution::seq, raw_query, [status](int document_id, DocumentStatus document_status, int rating) {
                 return document_status == status;
             });
 }
 
 std::vector<Document> SearchServer::FindTopDocuments(const std::string_view raw_query) const {
-    return FindTopDocuments(raw_query, DocumentStatus::ACTUAL);
+    return FindTopDocuments(execution::seq, raw_query, DocumentStatus::ACTUAL);
 }
 
-
-std::vector<Document> SearchServer::FindTopDocuments(execution::sequenced_policy, const std::string_view raw_query, DocumentStatus status) const {
-    return FindTopDocuments(
-            raw_query, [status](int document_id, DocumentStatus document_status, int rating) {
-                return document_status == status;
-            });
-}
-
-std::vector<Document> SearchServer::FindTopDocuments(execution::sequenced_policy, const std::string_view raw_query) const {
-    return FindTopDocuments(raw_query, DocumentStatus::ACTUAL);
-}
-
-
-
-std::vector<Document> SearchServer::FindTopDocuments(execution::parallel_policy, const std::string_view raw_query, DocumentStatus status) const {
-    return FindTopDocuments(execution::par, std::string(raw_query),  [status](int document_id, DocumentStatus document_status, int rating) {
-        return document_status == status;
-    });
-}
-
-std::vector<Document> SearchServer::FindTopDocuments(execution::parallel_policy, const std::string_view raw_query) const {
-    return FindTopDocuments(execution::par, raw_query, DocumentStatus::ACTUAL);
-}
 
 int SearchServer::GetDocumentCount() const {
     return documents_.size();
