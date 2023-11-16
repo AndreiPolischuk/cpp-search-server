@@ -139,28 +139,12 @@ void AddDocument(SearchServer &ss, int document_id, const std::string_view docum
 template<typename DocumentPredicate>
 std::vector<Document> SearchServer::FindTopDocuments(const std::string_view raw_query,
                                                      DocumentPredicate document_predicate) const {
-    //LOG_DURATION_STREAM("Operation time", std::cerr);
-    const auto query = ParseQuery(raw_query);
-    auto matched_documents = FindAllDocuments(query, document_predicate);
-    std::sort(matched_documents.begin(), matched_documents.end(),
-              [](const Document &lhs, const Document &rhs) {
-                  if (std::abs(lhs.relevance - rhs.relevance) < EPSILON) {
-                      return lhs.rating > rhs.rating;
-                  } else {
-                      return lhs.relevance > rhs.relevance;
-                  }
-              });
-    if (matched_documents.size() > MAX_RESULT_DOCUMENT_COUNT) {
-        matched_documents.resize(MAX_RESULT_DOCUMENT_COUNT);
-    }
-    return matched_documents;
+    return FindTopDocuments(std::execution::seq, raw_query, document_predicate);
 }
-
 
 template<typename DocumentPredicate, typename ExecutionPolicy>
 std::vector<Document> SearchServer::FindTopDocuments(ExecutionPolicy policy, const std::string_view raw_query,
                                                      DocumentPredicate document_predicate) const {
-    //LOG_DURATION_STREAM("Operation time", std::cerr);
     const auto query = ParseQuery(raw_query);
     auto matched_documents = FindAllDocuments(policy, query, document_predicate);
     std::sort(policy, matched_documents.begin(), matched_documents.end(),
